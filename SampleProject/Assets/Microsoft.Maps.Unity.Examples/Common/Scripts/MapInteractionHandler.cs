@@ -14,7 +14,7 @@ using UnityEngine;
 /// Handles panning and dragging the map via controller rays. Also handles zooming in and out of selected location.
 /// </summary>
 [RequireComponent(typeof(MapRenderer))]
-public class MapInteractionHandler : MonoBehaviour, IMixedRealityPointerHandler, IMixedRealityInputHandler<Vector2>
+public class MapInteractionHandler : MonoBehaviour, IMixedRealityPointerHandler, IMixedRealityTouchHandler, IMixedRealityInputHandler<Vector2>
 {
     private const double JoystickDeadZone = 0.3;
 
@@ -183,5 +183,35 @@ public class MapInteractionHandler : MonoBehaviour, IMixedRealityPointerHandler,
         }
 
         return 1.0f - Mathf.Pow(0.5f, delta / halfLife);
+    }
+
+    public void OnTouchStarted(HandTrackingInputEventData eventData)
+    {
+        _panningPointer = PointerUtils.GetPointer<PokePointer>(eventData.Handedness);
+
+        if (CoreServices.InputSystem.FocusProvider.TryGetFocusDetails(_panningPointer, out FocusDetails focusDetails) &&
+    focusDetails.Object == gameObject)
+        {
+            //_panningPointer = eventData.Pointer;
+            _startingPointInLocalSpace = focusDetails.PointLocalSpace;
+            _startingPointInMercatorSpace =
+                _mapRenderer.TransformLocalPointToMercatorWithAltitude(
+                    _startingPointInLocalSpace,
+                    out _startingAltitudeInMeters,
+                    out _startingMercatorScale);
+            _currentPointInLocalSpace = _startingPointInLocalSpace;
+            _startingMapCenterInMercator = _mapRenderer.Center.ToMercatorPosition();
+
+            eventData.Use();
+        }
+    }
+
+    public void OnTouchCompleted(HandTrackingInputEventData eventData)
+    {
+        _panningPointer = null;
+    }
+
+    public void OnTouchUpdated(HandTrackingInputEventData eventData)
+    {
     }
 }
